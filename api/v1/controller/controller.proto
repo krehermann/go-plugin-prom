@@ -1,0 +1,39 @@
+syntax = "proto3";
+
+option go_package = "github.com/krehermann/go-plugin-prom/api/v1/controller";
+
+package controller;
+
+// The controller service definition.
+service Controller {
+  // Sends a greeting
+  rpc Start (StartRequest) returns (StartResponse) {}
+  rpc Stop (StopRequest) returns (StopResponse) {}
+  rpc Kill (KillRequest) returns (KillResponse) {}
+}
+
+// The request message containing the user's name.
+message StartRequest {
+  string name = 1;
+}
+
+message StartResponse {
+  }
+  
+
+// The response message containing the greetings
+message StopRequest {
+  string name = 1;
+}
+
+message StopResponse {
+  }
+
+
+// The response message containing the greetings
+message KillRequest {
+    string name = 1;
+  }
+  
+  message KillResponse {
+    }
