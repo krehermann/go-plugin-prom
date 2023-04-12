@@ -55,7 +55,7 @@ func main() {
 							c := api.NewControllerClient(conn)
 
 							// Contact the server and print out its response.
-							ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+							ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 							defer cancel()
 							_, err = c.Start(ctx, &api.StartRequest{Name: pluginName})
 							if err != nil {
@@ -78,7 +78,7 @@ func main() {
 							c := api.NewControllerClient(conn)
 
 							// Contact the server and print out its response.
-							ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+							ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 							defer cancel()
 							_, err = c.Stop(ctx, &api.StopRequest{Name: pluginName})
 							if err != nil {
@@ -145,7 +145,7 @@ func main() {
 								log.Fatalf("failed to listen: %v", err)
 							}
 							s := grpc.NewServer()
-							api.RegisterControllerServer(s, &server.Server{})
+							api.RegisterControllerServer(s, server.NewServer())
 							log.Printf("server listening at %v", lis.Addr())
 							if err := s.Serve(lis); err != nil {
 								log.Fatalf("failed to serve: %v", err)
