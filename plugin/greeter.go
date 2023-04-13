@@ -1,11 +1,29 @@
 package main
 
 import (
+	"log"
+	"net/http"
 	"os"
+	"time"
 
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-plugin"
 	common "github.com/krehermann/go-plugin-prom/common"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
+)
+
+var (
+	greet_count = promauto.NewCounter(prometheus.CounterOpts{
+		Name: "greet_count",
+		Help: "The total number of starts events",
+	})
+
+	ticker_count = promauto.NewCounter(prometheus.CounterOpts{
+		Name: "ticker_count",
+		Help: "Ticker every 10s seconds",
+	})
 )
 
 // Here is a real implementation of Greeter
@@ -15,6 +33,7 @@ type GreeterHello struct {
 
 func (g *GreeterHello) Greet() string {
 	g.logger.Debug("message from GreeterHello.Greet")
+	greet_count.Inc()
 	return "Hello!"
 }
 
@@ -38,6 +57,24 @@ func main() {
 	greeter := &GreeterHello{
 		logger: logger,
 	}
+
+	go func() {
+		ticker := time.NewTicker(10 * time.Second)
+		for {
+			<-ticker.C
+			ticker_count.Inc()
+		}
+	}()
+
+	go func() {
+		http.Handle("/metrics", promhttp.Handler())
+
+		err := http.ListenAndServe(":2113", nil)
+		if err != nil {
+			log.Fatalf("error starting prom metric endpoint: %v", err)
+		}
+	}()
+
 	// pluginMap is the map of plugins we can dispense.
 	var pluginMap = map[string]plugin.Plugin{
 		"greeter": &common.GreeterPlugin{Impl: greeter},
