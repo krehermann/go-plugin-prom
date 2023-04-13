@@ -23,6 +23,8 @@ EXPOSE 2112
 # plugin range
 EXPOSE 2113-2200
 
+RUN mkdir -p /etc/prometheus/targets
+
 ENTRYPOINT ["bin/cli"]
 
 #HEALTHCHECK CMD curl -f http://localhost:6688/health || exit 1

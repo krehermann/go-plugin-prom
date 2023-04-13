@@ -6,7 +6,6 @@ import (
 	"log"
 	"sync"
 
-	"github.com/hashicorp/go-plugin"
 	api "github.com/krehermann/go-plugin-prom/api/v1/controller"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
@@ -29,12 +28,14 @@ type controllerGRPCimpl struct {
 	api.UnimplementedControllerServer
 
 	m         sync.Mutex
-	pluginMap map[string]*plugin.Client
+	pluginMap map[string]*pluginWrapper
+	port      int
 }
 
 func NewServer() *controllerGRPCimpl {
 	return &controllerGRPCimpl{
-		pluginMap: make(map[string]*plugin.Client),
+		pluginMap: make(map[string]*pluginWrapper),
+		port:      2113,
 	}
 }
 
@@ -47,13 +48,15 @@ func (s *controllerGRPCimpl) Start(ctx context.Context, in *api.StartRequest) (*
 	}
 	s.m.Unlock()
 
-	p, err := startPlugin(in.Name)
+	// hack
+	p, err := startPlugin(in.Name, s.port)
 	if err != nil {
 		return &api.StartResponse{}, err
 	}
 	start_count.WithLabelValues(in.Name).Inc()
 	s.m.Lock()
 	s.pluginMap[in.Name] = p
+	s.port += 1
 	s.m.Unlock()
 
 	return &api.StartResponse{}, nil
