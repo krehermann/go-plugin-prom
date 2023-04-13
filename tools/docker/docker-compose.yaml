@@ -18,11 +18,12 @@ services:
       # prom endpoints
       - 2112-2200:2112-2200
 
-  prometheus:
+  prometheus-embedded:
     image: prom/prometheus:latest
     volumes:
       - ./prometheus.yml:/etc/prometheus/prometheus.yml
-    command:
-      - '--config.file=/etc/prometheus/prometheus.yml'
+    # command:
+    #  - '--config.file=/etc/prometheus/prometheus.yml'
     ports:
-      - '9090:9090'
+      - '9091:9091'
+    entrypoint: /bin/sh -c "prometheus --web.listen-address="0.0.0.0:9091" --config.file=/etc/prometheus/prometheus.yml"
