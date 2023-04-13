@@ -19,7 +19,7 @@ var (
 	}, []string{"plugin_name"})
 
 	stop_count = promauto.NewCounterVec(prometheus.CounterOpts{
-		Name: "start_count",
+		Name: "stop_count",
 		Help: "The total number of starts events",
 	}, []string{"plugin_name"})
 )
@@ -83,4 +83,12 @@ func (s *controllerGRPCimpl) Kill(ctx context.Context, in *api.KillRequest) (*ap
 	log.Printf("Received kill: %v", in.GetName())
 	// todo send self explode directive to plugin
 	return &api.KillResponse{}, nil
+}
+
+func (s *controllerGRPCimpl) Shutdown() {
+	s.m.Lock()
+	for _, p := range s.pluginMap {
+		p.Kill()
+	}
+	s.m.Unlock()
 }
