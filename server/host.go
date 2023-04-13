@@ -12,14 +12,32 @@ import (
 	"github.com/hashicorp/go-plugin"
 	"github.com/hashicorp/go-plugin/examples/basic/shared"
 	common "github.com/krehermann/go-plugin-prom/common"
+	"github.com/prometheus/common/model"
+	"github.com/prometheus/prometheus/discovery/targetgroup"
 )
 
-func startPlugin(name string) (*plugin.Client, error) {
+type pluginWrapper struct {
+	*plugin.Client
+	promTarget *targetgroup.Group
+}
+
+func startPlugin(name string, port int) (*pluginWrapper, error) {
 	logger := hclog.New(&hclog.LoggerOptions{
 		Name:   "plugin",
 		Output: os.Stdout,
 		Level:  hclog.Debug,
 	})
+
+	target := &targetgroup.Group{
+		Targets: []model.LabelSet{
+			{model.AddressLabel: model.LabelValue(fmt.Sprintf("localhost:%d", port))},
+			{model.AddressLabel: model.LabelValue(fmt.Sprintf("host.docker.internal:%d", port))},
+		},
+		Labels: map[model.LabelName]model.LabelValue{
+			"job": model.LabelValue(fmt.Sprintf("plugin_%s", name)),
+		},
+		Source: "",
+	}
 
 	// We're a host! Start by launching the plugin process.
 	client := plugin.NewClient(&plugin.ClientConfig{
@@ -48,7 +66,10 @@ func startPlugin(name string) (*plugin.Client, error) {
 	// implementation but is in fact over an RPC connection.
 	greeter := raw.(common.Greeter)
 	fmt.Println(greeter.Greet())
-	return client, nil
+	return &pluginWrapper{
+		Client:     client,
+		promTarget: target,
+	}, nil
 }
 
 // handshakeConfigs are used to just do a basic handshake between

@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
 	"net"
@@ -12,6 +13,7 @@ import (
 
 	api "github.com/krehermann/go-plugin-prom/api/v1/controller"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/prometheus/prometheus/discovery/targetgroup"
 
 	"google.golang.org/grpc"
 )
@@ -35,6 +37,23 @@ func NewOperator(cfg OperatorConfig) *Operator {
 	}
 }
 
+func (o *Operator) staticConfigHandler(w http.ResponseWriter, req *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	groups := make([]*targetgroup.Group, 0)
+	o.controller.m.Lock()
+	defer o.controller.m.Unlock()
+	for _, p := range o.controller.pluginMap {
+		groups = append(groups, p.promTarget)
+	}
+
+	b, err := json.Marshal(groups)
+	if err != nil {
+		w.Write([]byte(err.Error()))
+		return
+	}
+	w.Write(b)
+}
+
 func (o *Operator) Run(ctx context.Context) error {
 	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", o.cfg.Port))
 	if err != nil {
@@ -44,6 +63,7 @@ func (o *Operator) Run(ctx context.Context) error {
 	go func() {
 		http.Handle("/metrics", promhttp.Handler())
 
+		http.HandleFunc("/sd_config", o.staticConfigHandler)
 		err = http.ListenAndServe(":2112", nil)
 		if err != nil {
 			log.Fatalf("error starting prom metric endpoint: %v", err)
