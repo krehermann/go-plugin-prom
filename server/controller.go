@@ -8,24 +8,38 @@ import (
 
 	"github.com/hashicorp/go-plugin"
 	api "github.com/krehermann/go-plugin-prom/api/v1/controller"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
+)
+
+var (
+	start_count = promauto.NewCounterVec(prometheus.CounterOpts{
+		Name: "start_count",
+		Help: "The total number of starts events",
+	}, []string{"plugin_name"})
+
+	stop_count = promauto.NewCounterVec(prometheus.CounterOpts{
+		Name: "start_count",
+		Help: "The total number of starts events",
+	}, []string{"plugin_name"})
 )
 
 // server is used to implement helloworld.GreeterServer.
-type Server struct {
+type controllerGRPCimpl struct {
 	api.UnimplementedControllerServer
 
 	m         sync.Mutex
 	pluginMap map[string]*plugin.Client
 }
 
-func NewServer() *Server {
-	return &Server{
+func NewServer() *controllerGRPCimpl {
+	return &controllerGRPCimpl{
 		pluginMap: make(map[string]*plugin.Client),
 	}
 }
 
 // SayHello implements helloworld.GreeterServer
-func (s *Server) Start(ctx context.Context, in *api.StartRequest) (*api.StartResponse, error) {
+func (s *controllerGRPCimpl) Start(ctx context.Context, in *api.StartRequest) (*api.StartResponse, error) {
 	log.Printf("Received start: %v", in.GetName())
 	s.m.Lock()
 	if _, exists := s.pluginMap[in.Name]; exists {
@@ -37,6 +51,7 @@ func (s *Server) Start(ctx context.Context, in *api.StartRequest) (*api.StartRes
 	if err != nil {
 		return &api.StartResponse{}, err
 	}
+	start_count.WithLabelValues(in.Name).Inc()
 	s.m.Lock()
 	s.pluginMap[in.Name] = p
 	s.m.Unlock()
@@ -45,7 +60,7 @@ func (s *Server) Start(ctx context.Context, in *api.StartRequest) (*api.StartRes
 }
 
 // SayHello implements helloworld.GreeterServer
-func (s *Server) Stop(ctx context.Context, in *api.StopRequest) (*api.StopResponse, error) {
+func (s *controllerGRPCimpl) Stop(ctx context.Context, in *api.StopRequest) (*api.StopResponse, error) {
 	log.Printf("Received stop: %v", in.GetName())
 
 	s.m.Lock()
@@ -58,11 +73,13 @@ func (s *Server) Stop(ctx context.Context, in *api.StopRequest) (*api.StopRespon
 	}
 	s.m.Unlock()
 
+	stop_count.WithLabelValues(in.Name).Inc()
+
 	return &api.StopResponse{}, nil
 }
 
 // SayHello implements helloworld.GreeterServer
-func (s *Server) Kill(ctx context.Context, in *api.KillRequest) (*api.KillResponse, error) {
+func (s *controllerGRPCimpl) Kill(ctx context.Context, in *api.KillRequest) (*api.KillResponse, error) {
 	log.Printf("Received kill: %v", in.GetName())
 	// todo send self explode directive to plugin
 	return &api.KillResponse{}, nil

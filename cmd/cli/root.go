@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"net"
 	"os"
 	"time"
 
@@ -140,18 +139,9 @@ func main() {
 							port := cCtx.Int("port")
 							fmt.Println("starting server: ", port)
 
-							lis, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
-							if err != nil {
-								log.Fatalf("failed to listen: %v", err)
-							}
-							s := grpc.NewServer()
-							api.RegisterControllerServer(s, server.NewServer())
-							log.Printf("server listening at %v", lis.Addr())
-							if err := s.Serve(lis); err != nil {
-								log.Fatalf("failed to serve: %v", err)
-							}
+							op := server.NewOperator(server.OperatorConfig{Port: port})
+							return op.Run(context.Background())
 
-							return nil
 						},
 					},
 				},
