@@ -1,0 +1,28 @@
+version: '3.5'
+
+services:
+  hacking:
+    container_name: my-service
+    image: krehermann/go-plugin-prom
+    build:
+      context: ../../
+      dockerfile: Dockerfile
+    # Note that the keystore import allows us to submit transactions
+    # immediately because addresses are specified when starting the
+    # parity/geth node to be prefunded with eth.
+    entrypoint: /bin/sh -c "bin/cli server start"
+    restart: always
+    ports:
+      # grpc server
+      - 50051:50051
+      # prom endpoints
+      - 2112-2200:2112-2200
+
+  prometheus:
+    image: prom/prometheus:latest
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+    ports:
+      - '9090:9090'
