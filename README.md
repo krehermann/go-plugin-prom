@@ -40,9 +40,10 @@ The `docker compose up` does
 This package implements a GRPC server that starts and stops a plugin.
 
 The interesting bit with regard to prometheus is that we use service discovery and dynamic HTTP routing to
-hide the plugins behind the GRPC server.
+1. enable full monitoring of a plugin (including standard `go` routine metrcs)
+2. hide the plugin behind the GRPC server.
 
-The plugin itself is running prom handler and a web server, but that web server in not exposed outside the container.
+The plugin itself is running an HTTP server for it's own prom handler, but that web server in not exposed outside the container.
 This enables the fully power of prom metrics in a plugin limiting the exposed ports.
 
 Leveraging service discovery and HTTP routing enables us to totally seperate metric monitoring from plugin application
