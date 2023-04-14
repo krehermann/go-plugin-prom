@@ -20,11 +20,13 @@ import (
 type pluginWrapper struct {
 	*plugin.Client
 	promTarget *targetgroup.Group
+	port       int
+	name       string
 }
 
 func startPlugin(name string) (*pluginWrapper, error) {
 	logger := hclog.New(&hclog.LoggerOptions{
-		Name:   "plugin",
+		Name:   fmt.Sprintf("plugin-%s", name),
 		Output: os.Stdout,
 		Level:  hclog.Debug,
 	})
@@ -38,10 +40,11 @@ func startPlugin(name string) (*pluginWrapper, error) {
 	target := &targetgroup.Group{
 		Targets: []model.LabelSet{
 			{model.AddressLabel: model.LabelValue(fmt.Sprintf("localhost:%d", port))},
-			{model.AddressLabel: model.LabelValue(fmt.Sprintf("host.docker.internal:%d", port))},
+			//	{model.AddressLabel: model.LabelValue(fmt.Sprintf("host.docker.internal:%d", port))},
 		},
 		Labels: map[model.LabelName]model.LabelValue{
 			"job": model.LabelValue(fmt.Sprintf("plugin_%s", name)),
+			//model.MetricsPathLabel: model.LabelValue("custom_metric_path"),
 		},
 		Source: "",
 	}
@@ -76,6 +79,8 @@ func startPlugin(name string) (*pluginWrapper, error) {
 	return &pluginWrapper{
 		Client:     client,
 		promTarget: target,
+		port:       port,
+		name:       name,
 	}, nil
 }
 
