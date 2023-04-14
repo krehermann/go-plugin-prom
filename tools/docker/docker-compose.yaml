@@ -15,8 +15,8 @@ services:
     ports:
       # grpc server
       - 50051:50051
-      # prom endpoints
-      - 2112-2200:2112-2200
+      # prom endpoint
+      - 2112:2112
 
   prometheus-embedded:
     image: prom/prometheus:latest
