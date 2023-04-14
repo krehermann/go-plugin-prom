@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"strconv"
 
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-plugin"
@@ -21,12 +22,18 @@ type pluginWrapper struct {
 	promTarget *targetgroup.Group
 }
 
-func startPlugin(name string, port int) (*pluginWrapper, error) {
+func startPlugin(name string) (*pluginWrapper, error) {
 	logger := hclog.New(&hclog.LoggerOptions{
 		Name:   "plugin",
 		Output: os.Stdout,
 		Level:  hclog.Debug,
 	})
+
+	// find a port for prom server in the plugin
+	port, err := common.GetPortInRange(2115, 2120)
+	if err != nil {
+		return nil, err
+	}
 
 	target := &targetgroup.Group{
 		Targets: []model.LabelSet{
@@ -43,7 +50,7 @@ func startPlugin(name string, port int) (*pluginWrapper, error) {
 	client := plugin.NewClient(&plugin.ClientConfig{
 		HandshakeConfig: handshakeConfig,
 		Plugins:         pluginMap,
-		Cmd:             exec.Command("./bin/greeter"),
+		Cmd:             exec.Command("./bin/greeter", "-port", strconv.Itoa(port)),
 		Logger:          logger,
 	})
 	//defer client.Kill()

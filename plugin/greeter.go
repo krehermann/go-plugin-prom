@@ -1,6 +1,8 @@
 package main
 
 import (
+	"flag"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -48,6 +50,10 @@ var handshakeConfig = plugin.HandshakeConfig{
 }
 
 func main() {
+	// the host process assigns a port to use. reconsider this choice in fully model
+	portArg := flag.Int("port", 2200, "port for prometheus server")
+	flag.Parse()
+
 	logger := hclog.New(&hclog.LoggerOptions{
 		Level:      hclog.Trace,
 		Output:     os.Stderr,
@@ -67,9 +73,10 @@ func main() {
 	}()
 
 	go func() {
+		logger.Info("starting metric server on", "port", *portArg)
 		http.Handle("/metrics", promhttp.Handler())
-
-		err := http.ListenAndServe(":2113", nil)
+		addr := fmt.Sprintf(":%d", *portArg)
+		err := http.ListenAndServe(addr, nil)
 		if err != nil {
 			log.Fatalf("error starting prom metric endpoint: %v", err)
 		}

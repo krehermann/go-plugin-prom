@@ -10,7 +10,7 @@ services:
     # Note that the keystore import allows us to submit transactions
     # immediately because addresses are specified when starting the
     # parity/geth node to be prefunded with eth.
-    entrypoint: /bin/sh -c "bin/cli server start"
+    entrypoint: /bin/sh -c "/usr/local/myapp/run.sh"
     restart: always
     ports:
       # grpc server
