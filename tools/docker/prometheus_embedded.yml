@@ -1,0 +1,15 @@
+global:
+  scrape_interval: 10s
+
+scrape_configs:
+  - job_name: host
+    static_configs:
+      - targets: ["localhost:2112"]
+ # - job_name: 'file-based-targets'
+ #   file_sd_configs:
+ #   - files:
+ #     - '/etc/prometheus/targets/*.json'
+  - job_name: 'plugin-targets'
+    http_sd_configs:
+      - url: "http://localhost:2112/sd_config"
+        refresh_interval: 10s

@@ -29,13 +29,11 @@ type controllerGRPCimpl struct {
 
 	m         sync.Mutex
 	pluginMap map[string]*pluginWrapper
-	port      int
 }
 
 func NewServer() *controllerGRPCimpl {
 	return &controllerGRPCimpl{
 		pluginMap: make(map[string]*pluginWrapper),
-		port:      2113,
 	}
 }
 
@@ -43,21 +41,19 @@ func NewServer() *controllerGRPCimpl {
 func (s *controllerGRPCimpl) Start(ctx context.Context, in *api.StartRequest) (*api.StartResponse, error) {
 	log.Printf("Received start: %v", in.GetName())
 	s.m.Lock()
+	// start plugin needs to be serialized ATM because this
+	// server is reponsible for finding and assigning ports
+	defer s.m.Unlock()
 	if _, exists := s.pluginMap[in.Name]; exists {
 		return &api.StartResponse{}, fmt.Errorf("%s already running", in.Name)
 	}
-	s.m.Unlock()
 
-	// hack
-	p, err := startPlugin(in.Name, s.port)
+	p, err := startPlugin(in.Name)
 	if err != nil {
 		return &api.StartResponse{}, err
 	}
 	start_count.WithLabelValues(in.Name).Inc()
-	s.m.Lock()
 	s.pluginMap[in.Name] = p
-	s.port += 1
-	s.m.Unlock()
 
 	return &api.StartResponse{}, nil
 }
