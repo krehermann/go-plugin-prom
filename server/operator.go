@@ -4,15 +4,18 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"net"
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 
 	api "github.com/krehermann/go-plugin-prom/api/v1/controller"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/prometheus/common/model"
 	"github.com/prometheus/prometheus/discovery/targetgroup"
 
 	"google.golang.org/grpc"
@@ -21,6 +24,8 @@ import (
 type OperatorConfig struct {
 	Port int
 }
+
+var promPort = 2112
 
 type Operator struct {
 	controller *controllerGRPCimpl
@@ -37,16 +42,66 @@ func NewOperator(cfg OperatorConfig) *Operator {
 	}
 }
 
+func pluginMetricPath(name string) string {
+	return fmt.Sprintf("plugins/%s/metrics", name)
+}
+
+func extractPluginName(urlPath string) string {
+	temp := strings.TrimLeft(urlPath, "/")
+	return strings.Split(temp, "/")[1]
+}
+
 func (o *Operator) staticConfigHandler(w http.ResponseWriter, req *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	groups := make([]*targetgroup.Group, 0)
 	o.controller.m.Lock()
 	defer o.controller.m.Unlock()
 	for _, p := range o.controller.pluginMap {
-		groups = append(groups, p.promTarget)
+		// create a metric target for each running plugin
+		target := &targetgroup.Group{
+			Targets: []model.LabelSet{
+				{model.AddressLabel: model.LabelValue(fmt.Sprintf("localhost:%d", promPort))},
+				{model.AddressLabel: model.LabelValue(fmt.Sprintf("host.docker.internal:%d", promPort))},
+			},
+			Labels: map[model.LabelName]model.LabelValue{
+				"job":                  model.LabelValue(fmt.Sprintf("plugin_%s-wrapper", p.name)),
+				model.MetricsPathLabel: model.LabelValue(pluginMetricPath(p.name)),
+			},
+		}
+
+		groups = append(groups, target, p.promTarget)
 	}
 
 	b, err := json.Marshal(groups)
+	if err != nil {
+		w.Write([]byte(err.Error()))
+		return
+	}
+	w.Write(b)
+}
+
+func (o *Operator) pluginMetricHandler(w http.ResponseWriter, req *http.Request) {
+	// route to metric handler for the target
+	log.Printf("plugin metric handler url path %s", req.URL.Path)
+	pluginName := extractPluginName(req.URL.Path)
+
+	o.controller.m.Lock()
+	p, ok := o.controller.pluginMap[pluginName]
+	o.controller.m.Unlock()
+
+	if !ok {
+		w.Write([]byte(fmt.Sprintf("plugin '%s' does not exist", pluginName)))
+		return
+	}
+
+	pluginURL := fmt.Sprintf("http://localhost:%d/metrics", p.port)
+	res, err := http.Get(pluginURL)
+	if err != nil {
+		w.Write([]byte(err.Error()))
+		return
+	}
+	defer res.Body.Close()
+	b, err := ioutil.ReadAll(res.Body)
 	if err != nil {
 		w.Write([]byte(err.Error()))
 		return
@@ -62,9 +117,10 @@ func (o *Operator) Run(ctx context.Context) error {
 	o.Listener = lis
 	go func() {
 		http.Handle("/metrics", promhttp.Handler())
+		http.HandleFunc("/plugins/", o.pluginMetricHandler)
 
 		http.HandleFunc("/sd_config", o.staticConfigHandler)
-		err = http.ListenAndServe(":2112", nil)
+		err = http.ListenAndServe(fmt.Sprintf(":%d", promPort), nil)
 		if err != nil {
 			log.Fatalf("error starting prom metric endpoint: %v", err)
 		}

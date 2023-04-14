@@ -18,12 +18,12 @@ import (
 
 var (
 	greet_count = promauto.NewCounter(prometheus.CounterOpts{
-		Name: "greet_count",
+		Name: "plugin_greet_count",
 		Help: "The total number of starts events",
 	})
 
 	ticker_count = promauto.NewCounter(prometheus.CounterOpts{
-		Name: "ticker_count",
+		Name: "plugin_ticker_count",
 		Help: "Ticker every 10s seconds",
 	})
 )
