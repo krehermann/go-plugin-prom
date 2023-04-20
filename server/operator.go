@@ -12,8 +12,10 @@ import (
 	"os/signal"
 	"strings"
 	"syscall"
+	"time"
 
 	api "github.com/krehermann/go-plugin-prom/api/v1/controller"
+	"github.com/krehermann/go-plugin-prom/common"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/prometheus/common/model"
 	"github.com/prometheus/prometheus/discovery/targetgroup"
@@ -22,10 +24,10 @@ import (
 )
 
 type OperatorConfig struct {
-	Port int
+	Port          int
+	EnablePlugins bool
+	PromPort      int
 }
-
-var promPort = 2112
 
 type Operator struct {
 	controller *controllerGRPCimpl
@@ -60,8 +62,8 @@ func (o *Operator) staticConfigHandler(w http.ResponseWriter, req *http.Request)
 		// create a metric target for each running plugin
 		target := &targetgroup.Group{
 			Targets: []model.LabelSet{
-				{model.AddressLabel: model.LabelValue(fmt.Sprintf("localhost:%d", promPort))},
-				{model.AddressLabel: model.LabelValue(fmt.Sprintf("host.docker.internal:%d", promPort))},
+				{model.AddressLabel: model.LabelValue(fmt.Sprintf("localhost:%d", o.cfg.PromPort))},
+				{model.AddressLabel: model.LabelValue(fmt.Sprintf("host.docker.internal:%d", o.cfg.PromPort))},
 			},
 			Labels: map[model.LabelName]model.LabelValue{
 				"job":                  model.LabelValue(fmt.Sprintf("plugin_%s-wrapper", p.name)),
@@ -110,6 +112,11 @@ func (o *Operator) pluginMetricHandler(w http.ResponseWriter, req *http.Request)
 }
 
 func (o *Operator) Run(ctx context.Context) error {
+
+	if !o.cfg.EnablePlugins {
+		log.Printf("server running common counter")
+		common.RunAbstractedCounter(1*time.Second, 3)
+	}
 	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", o.cfg.Port))
 	if err != nil {
 		log.Fatalf("failed to listen: %v", err)
@@ -120,7 +127,8 @@ func (o *Operator) Run(ctx context.Context) error {
 		http.HandleFunc("/plugins/", o.pluginMetricHandler)
 
 		http.HandleFunc("/sd_config", o.staticConfigHandler)
-		err = http.ListenAndServe(fmt.Sprintf(":%d", promPort), nil)
+		log.Printf("serving prom endpoints at %v", o.cfg.PromPort)
+		err = http.ListenAndServe(fmt.Sprintf(":%d", o.cfg.PromPort), nil)
 		if err != nil {
 			log.Fatalf("error starting prom metric endpoint: %v", err)
 		}
@@ -142,9 +150,9 @@ func (o *Operator) Run(ctx context.Context) error {
 	// The program will wait here until it gets the
 	// expected signal (as indicated by the goroutine
 	// above sending a value on `done`) and then exit.
-	fmt.Println("awaiting signal")
+	log.Println("awaiting signal")
 	<-done
-	fmt.Println("exiting")
+	log.Println("exiting")
 
 	return nil
 }
@@ -172,8 +180,8 @@ func (o *Operator) signalHandler(done chan struct{}) {
 		sig := <-sigs
 		o.controller.Shutdown()
 		o.Listener.Close()
-		fmt.Println()
-		fmt.Println(sig)
+		log.Println()
+		log.Println(sig)
 		done <- struct{}{}
 	}()
 

@@ -50,6 +50,10 @@ var handshakeConfig = plugin.HandshakeConfig{
 }
 
 func main() {
+	// register the abstract metric
+	//prometheus.MustRegister(common.Abstracted_counter)
+	common.RunAbstractedCounter(1*time.Second, 23)
+
 	// the host process assigns a port to use. reconsider this choice in fully model
 	portArg := flag.Int("port", 2200, "port for prometheus server")
 	flag.Parse()

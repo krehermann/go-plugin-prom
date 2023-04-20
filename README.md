@@ -46,14 +46,14 @@ The interesting bit with regard to prometheus is that we use service discovery a
 The plugin itself is running an HTTP server for it's own prom handler, but that web server in not exposed outside the container.
 This enables the fully power of prom metrics in a plugin limiting the exposed ports.
 
-Leveraging service discovery and HTTP routing enables us to totally seperate metric monitoring from plugin application
+Moreover, leveraging service discovery and HTTP routing enables us to totally seperate metric monitoring from plugin application
 logic.
 
 In order for the plugin to be monitored by prom, we implement 2 HTTP endpoints in the GRPC server in addition to it's own prom `/metrics` endpoint
 
 The endpoints serve to 
 1. enable external prometheus prom to do dynamically determine what to monitor based on what plugins are running 
-2. route external prom scraping to the plugins without exposing them directly
+2. route external prom scraping requests to the plugins without exposing them directly
 
 Specifically the endpoints are 
 - `/sd_config` : HTTP Service Discovery [https://prometheus.io/docs/prometheus/latest/configuration/configuration/#http_sd_config]

@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"os"
 	"time"
@@ -44,7 +43,7 @@ func main() {
 						Name:  "start",
 						Usage: "start the plugin",
 						Action: func(cCtx *cli.Context) error {
-							fmt.Println("Start plugin: ", pluginName)
+							log.Println("Start plugin: ", pluginName)
 							// Set up a connection to the server.
 							conn, err := grpc.Dial(serverAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 							if err != nil {
@@ -67,7 +66,7 @@ func main() {
 						Name:  "stop",
 						Usage: "stop the plugin",
 						Action: func(cCtx *cli.Context) error {
-							fmt.Println("Stop plugin: ", pluginName)
+							log.Println("Stop plugin: ", pluginName)
 							// Set up a connection to the server.
 							conn, err := grpc.Dial(serverAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 							if err != nil {
@@ -97,7 +96,7 @@ func main() {
 							},
 						},
 						Action: func(cCtx *cli.Context) error {
-							fmt.Println("Kill plugin: ", pluginName)
+							log.Println("Kill plugin: ", pluginName)
 							// Set up a connection to the server.
 							conn, err := grpc.Dial(serverAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 							if err != nil {
@@ -126,7 +125,12 @@ func main() {
 					&cli.IntFlag{
 						Name:  "port",
 						Value: 50051,
-						Usage: "server port",
+						Usage: "server grpc port",
+					},
+					&cli.IntFlag{
+						Name:  "prom-port",
+						Value: 2112,
+						Usage: "server prom http port",
 					},
 				},
 
@@ -134,12 +138,18 @@ func main() {
 					{
 						Name:  "start",
 						Usage: "start the server",
-
+						Flags: []cli.Flag{
+							&cli.BoolFlag{
+								Name:  "enable-plugins",
+								Value: false,
+							},
+						},
 						Action: func(cCtx *cli.Context) error {
 							port := cCtx.Int("port")
-							fmt.Println("starting server: ", port)
-
-							op := server.NewOperator(server.OperatorConfig{Port: port})
+							promPort := cCtx.Int("prom-port")
+							enablePlugins := cCtx.Bool("enable-plugins")
+							log.Printf("starting server: %d, plugins enabled: %v", port, enablePlugins)
+							op := server.NewOperator(server.OperatorConfig{Port: port, EnablePlugins: enablePlugins, PromPort: promPort})
 							return op.Run(context.Background())
 
 						},

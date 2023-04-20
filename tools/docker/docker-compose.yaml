@@ -1,9 +1,28 @@
 version: '3.5'
 
 services:
-  hacking:
-    container_name: my-service
+  with-plugins:
+    container_name: service-with-plugin
     image: krehermann/go-plugin-prom
+
+    build:
+      context: ../../
+      dockerfile: Dockerfile
+    # Note that the keystore import allows us to submit transactions
+    # immediately because addresses are specified when starting the
+    # parity/geth node to be prefunded with eth.
+    entrypoint: /bin/sh -c "PLUGINS_ON=true /usr/local/myapp/run.sh"
+    restart: always
+    ports:
+      # grpc server
+      - 50051:50051
+      # prom endpoint
+      - 2112:2112
+
+  legacy:
+    container_name: service-without-plugin
+    image: krehermann/go-plugin-prom
+
     build:
       context: ../../
       dockerfile: Dockerfile
@@ -14,16 +33,16 @@ services:
     restart: always
     ports:
       # grpc server
-      - 50051:50051
+      - 50052:50051
       # prom endpoint
-      - 2112:2112
+      - 2113:2112
 
   prometheus-embedded:
     image: prom/prometheus:latest
     volumes:
       - ./prometheus.yml:/etc/prometheus/prometheus.yml
-    # command:
-    #  - '--config.file=/etc/prometheus/prometheus.yml'
+      - ./prometheus_rules.yml:/etc/prometheus/prometheus_rules.yml
+
     ports:
       - '9091:9091'
     entrypoint: /bin/sh -c "prometheus --web.listen-address="0.0.0.0:9091" --config.file=/etc/prometheus/prometheus.yml"

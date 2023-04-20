@@ -1,0 +1,8 @@
+groups:
+- name: alert_example
+  rules:
+  - alert: compatibility_test
+    expr:  abstracted_metrics > 500
+ #   for: 5m
+    labels:
+      severity: major
